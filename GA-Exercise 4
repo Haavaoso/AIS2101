@@ -1,0 +1,167 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import random
+
+# Coefficients and peak coordinates
+a, b, c, d = [random.uniform(1, 2) for _ in range(4)]
+h_x, h_y, h_z = [random.uniform(-5, 5) for _ in range(3)]
+
+# Define the function for z
+def f(x, y):
+    z = -a * (x - h_x)**2 - b * (y - h_y)**2 + d
+    return z
+
+# Generate grid for x and y within constraints
+x = np.linspace(-10, 10, 400)
+y = np.linspace(-10, 10, 400)
+x, y = np.meshgrid(x, y)
+
+# Compute z values
+z = f(x, y)
+
+# Plotting
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111, projection='3d')
+surf = ax.plot_surface(x, y, z, cmap='viridis', edgecolor='none')
+ax.set_title('3D Function with a Single Top Point')
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+
+# Add a color bar to show the height
+fig.colorbar(surf, shrink=0.5, aspect=5)
+plt.show()
+
+
+population_size = 100
+crossover_rate = 0.6
+mutation_rate = 0.08
+target = [random.randint(-10, 10), random.randint(-10, 10), random.randint(-10, 10)]
+generation_cap = 15
+
+
+
+def generate_individual_on_plane(f):
+    x = random.uniform(-10, 10)
+    y = random.uniform(-10, 10)
+    z = f(x, y)  # Only x and Y can be random because z is dependent on these
+    return (x, y, z)
+
+def initial_population(population_size, target, f):
+    pop_list = []
+    for _ in range(population_size):
+        parent = generate_individual_on_plane(f)
+        pop_list.append((parent))
+    return pop_list
+
+
+def fitness(individual, h_x, h_y):
+    # Calculate the negative distance to the peak
+    distance = -np.sqrt((individual[0] - h_x)**2 + (individual[1] - h_y)**2)
+    return distance
+
+
+def tournament_selection(population, tournament_size):
+    selected = random.sample(population, tournament_size)
+    selected = sorted(selected, key=lambda x: fitness(x, h_x, h_y), reverse=True)
+    return selected[0]
+
+def crossover(parent1, parent2, crossover_rate):
+    if random.random() < crossover_rate:
+        return (random.choice([parent1[0], parent2[0]]), random.choice([parent1[1], parent2[1]]), f(*parent1[:2]))
+    else:
+        return parent1
+
+def mutate(individual, mutation_rate):
+    if random.random() < mutation_rate:
+        x, y, _ = individual
+        x += np.random.normal(0, 1)
+        y += np.random.normal(0, 1)
+        z = f(x, y)
+        return (x, y, z)
+    return individual
+
+
+#"Main function"
+def genetic_algorithm(population_size, crossover_rate, mutation_rate, generation_cap, f):
+    # generate a population
+    population = initial_population(population_size, target, f)
+
+    generation = 0
+    while generation <  generation_cap:
+        new_population = []
+
+
+        for _ in range(population_size // 2):
+            # 5% of population in each selection
+            parent1 = tournament_selection(population, int(population_size * 0.05))
+            parent2 = tournament_selection(population, int(population_size * 0.05))
+
+            # applying crossover
+            child1 = crossover(parent1, parent2, crossover_rate)
+            child2 = crossover(parent2, parent1, crossover_rate)
+
+            # applying mutation
+            child1 = mutate(child1, mutation_rate)
+            child2 = mutate(child2, mutation_rate)
+
+            new_population.extend([child1, child2])
+
+        population = new_population
+
+        # Optional: Track and print the best solution in this generation
+        best_individual = max(population, key=lambda x: fitness(x, h_x, h_y))
+        print(f"Generation {generation}: Best Fitness = {fitness(best_individual, h_x, h_y)}")
+        generation += 1
+        # Return the best solution found
+    max(population, key=lambda x: fitness(x, h_x, h_y))
+
+# Run the Genetic Algorithm
+best_solution = genetic_algorithm(population_size, crossover_rate, mutation_rate, generation_cap, f)
+print(f"Best Solution: {best_solution}, Fitness: {fitness(best_solution, h_x, h_y)}")
+
+
+
+def genetic_algorithm(population_size, crossover_rate, mutation_rate, generation_cap, f, elitism_count=5):
+    # Generate the initial population
+    population = initial_population(population_size, target, f)
+
+    generation = 0
+    while generation < generation_cap:
+        # Sort the current population by fitness (descending order)
+        population = sorted(population, key=lambda x: fitness(x, h_x, h_y), reverse=True)
+
+        # Create a new population starting with the elites
+        new_population = population[:elitism_count]
+
+        while len(new_population) < population_size:
+            # 5% large tourtornament size
+            parent1 = tournament_selection(population, int(population_size * 0.05))
+            parent2 = tournament_selection(population, int(population_size * 0.05))
+
+            # crossover step
+            child1 = crossover(parent1, parent2, crossover_rate)
+            child2 = crossover(parent2, parent1, crossover_rate)
+
+            # mutation step
+            child1 = mutate(child1, mutation_rate)
+            child2 = mutate(child2, mutation_rate)
+
+            if len(new_population) < population_size:
+                new_population.append(child1)
+            if len(new_population) < population_size:
+                new_population.append(child2)
+
+        population = new_population
+        generation += 1
+        best_individual = population[0]  # The first individual is the best due to sorting
+        print(f"Generation {generation}: Best Fitness = {fitness(best_individual, h_x, h_y)}")
+
+    # Return the best solution found
+    best_solution = population[0]  # The first individual is the best due to sorting
+    print(f"Best Solution: {best_solution}, Fitness: {fitness(best_solution, h_x, h_y)}")
+    return best_solution
+
+# Run the Genetic Algorithm with elitism
+best_solution = genetic_algorithm(population_size, crossover_rate, mutation_rate, generation_cap, f, elitism_count=5)
