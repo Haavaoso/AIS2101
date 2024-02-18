@@ -1,0 +1,93 @@
+%Much inspiration from https://www.youtube.com/watch?v=jk573bLOUSU&t=1061s
+import random
+import matplotlib.pyplot as plt
+
+norwegian_chars = [197, 198, 216, 229, 230, 248]
+ascii_range = list(range(32, 127)) + norwegian_chars
+
+
+def create_initial_population(size, target):
+    population = []
+
+    for _ in range(size):
+        individual = ""
+        for _ in range(len(target)):
+            char = chr(random.choice(ascii_range))
+            individual += char
+        population.append(individual)
+    return population
+
+def fitness_calc(individual, target):
+    matches = 0 
+
+    for ind_char, target_char in zip(individual, target):
+        if ind_char == target_char:
+            matches += 1
+    fitness = matches / len(target)
+    return fitness
+
+def roulette_wheel_selection(population, fitnesses):
+
+    return random.choices(population, weights=fitnesses, k=1)[0]
+
+
+def simple_crossover(parent1, parent2, crossover_rate):
+
+    if random.random() < crossover_rate:
+        point = random.randint(1, len(parent1) - 2)
+        return parent1[:point] + parent2[point:], parent2[:point] + parent1[point:]
+    return parent1, parent2
+
+
+def mutate(individual, mutation_rate):
+
+    return ''.join(chr(random.choice(ascii_range)) if random.random() < mutation_rate else char for char in individual)
+
+
+def main():
+    target = "Håvard_Solbakken*581517"
+    population_size = 500
+    mutation_rate = 0.004
+    crossover_rate = 0.4
+    average_fitnesses = []
+
+
+    population = create_initial_population(population_size, target)
+    generation_count = 0
+
+    while True:
+
+        fitnesses = [fitness_calc(individual, target) for individual in population]
+
+        best_match = max(population, key=lambda ind: fitness_calc(ind, target))
+        if best_match == target:
+            print(f"Success, found {best_match} in generation {generation_count}")
+            plot_average_fitness(list(range(1, generation_count + 1)), average_fitnesses)
+            break
+
+        new_population = []
+        for _ in range(population_size // 2):
+            parent1 = roulette_wheel_selection(population, fitnesses)
+            parent2 = roulette_wheel_selection(population, fitnesses)
+            offspring1, offspring2 = simple_crossover(parent1, parent2, crossover_rate)
+            new_population.extend([offspring1, offspring2])
+
+
+        population = [mutate(individual, mutation_rate) for individual in new_population]
+        avg_fitness = sum(fitnesses) / len(fitnesses)
+        average_fitnesses.append(max(fitnesses))
+        print(f"Generation {generation_count}: Best match = {best_match}, Fitness = {max(fitnesses)}")
+        generation_count += 1
+
+
+def plot_average_fitness(generations, average_fitnesses):
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(generations, average_fitnesses, marker='.', linestyle='-', color='b')
+    plt.title('Average Fitness Over Generations')
+    plt.xlabel('Generation')
+    plt.ylabel('Average Fitness')
+    plt.grid(True)
+    plt.show()
+
+main()
